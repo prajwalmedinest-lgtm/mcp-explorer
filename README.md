@@ -2,7 +2,7 @@
 
 A production-grade developer platform to discover, inspect, and test public MCP (Model Context Protocol) servers from the official registry.
 
-**Live:** [mcp-explorer.vercel.app](https://mcp-explorer.vercel.app)
+**Live:** [mcp-explorer-phi.vercel.app](https://mcp-explorer-phi.vercel.app/)
 
 ---
 
