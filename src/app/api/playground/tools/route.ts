@@ -93,6 +93,40 @@ export async function GET(req: NextRequest) {
         { status: 502 }
       )
     }
+    if (message.includes("HTTP 401") || message.includes("HTTP 403")) {
+      return NextResponse.json(
+        {
+          error: "auth_required",
+          message: "This server requires authentication. You need an API key to connect.",
+          githubUrl: server.githubUrl,
+          websiteUrl: server.websiteUrl,
+        },
+        { status: 422 }
+      )
+    }
+    if (message.includes("HTTP 404")) {
+      return NextResponse.json(
+        {
+          error: "auth_required",
+          message: "This server returned 404. It likely requires an API key or personal token to access.",
+          githubUrl: server.githubUrl,
+          websiteUrl: server.websiteUrl,
+        },
+        { status: 422 }
+      )
+    }
+    // Check if the response was HTML (auth redirect / login page)
+    if (message.includes("<!DOCTYPE") || message.includes("Unexpected token")) {
+      return NextResponse.json(
+        {
+          error: "auth_required",
+          message: "This server returned a non-MCP response. It likely requires authentication.",
+          githubUrl: server.githubUrl,
+          websiteUrl: server.websiteUrl,
+        },
+        { status: 422 }
+      )
+    }
 
     return NextResponse.json(
       { error: "execution_failed", message },

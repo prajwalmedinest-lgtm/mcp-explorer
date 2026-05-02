@@ -48,18 +48,31 @@ async function rpcPost(
   })
 
   if (!res.ok) {
+    // Try to read body for better error context
+    const body = await res.text().catch(() => "")
+    // If the server returned HTML it's likely an auth redirect / login page
+    if (body.trimStart().startsWith("<!")) {
+      throw new Error(`HTTP ${res.status} — server returned HTML (authentication required)`)
+    }
     throw new Error(`HTTP ${res.status} ${res.statusText}`)
   }
 
   const newSessionId = res.headers.get("Mcp-Session-Id") ?? undefined
   const contentType = res.headers.get("Content-Type") ?? ""
 
+  // Read body once
+  const rawBody = await res.text()
+
+  // Detect HTML response even on 200 (some auth proxies return 200 + login page)
+  if (rawBody.trimStart().startsWith("<!")) {
+    throw new Error("Server returned HTML instead of JSON-RPC (authentication required)")
+  }
+
   let body: JsonRpcResponse
 
   if (contentType.includes("text/event-stream")) {
     // Parse SSE stream — collect the first data event that is a JSON-RPC response
-    const text = await res.text()
-    const lines = text.split("\n")
+    const lines = rawBody.split("\n")
     let jsonStr = ""
     for (const line of lines) {
       if (line.startsWith("data: ")) {
@@ -70,7 +83,7 @@ async function rpcPost(
     if (!jsonStr) throw new Error("Empty SSE stream — no data event received")
     body = JSON.parse(jsonStr) as JsonRpcResponse
   } else {
-    body = await res.json() as JsonRpcResponse
+    body = JSON.parse(rawBody) as JsonRpcResponse
   }
 
   return { response: body, sessionId: newSessionId }

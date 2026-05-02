@@ -132,11 +132,18 @@ export function PlaygroundInterface() {
 
   useEffect(() => {
     const ctrl = new AbortController()
-    fetch("/api/servers?sort=name&limit=200", { signal: ctrl.signal })
+    fetch("/api/servers?sort=name&limit=500", { signal: ctrl.signal })
       .then(r => r.json())
       .then(data => {
         const list: NormalizedServer[] = (data.servers ?? []).filter(
-          (s: NormalizedServer) => s.hasRemote
+          (s: NormalizedServer) => {
+            if (!s.hasRemote) return false
+            // Smithery servers require a personal API key — exclude from playground
+            // They return 404 HTML without ?api_key= in the URL
+            const url = s.remoteUrls[0] ?? ""
+            if (url.includes("smithery.ai")) return false
+            return true
+          }
         )
         setServers(list)
         if (list.length > 0) setSelectedServer(list[0])
@@ -167,6 +174,8 @@ export function PlaygroundInterface() {
       if (!res.ok) {
         if (data.error === "no_remote") {
           setToolsError("no_remote")
+        } else if (data.error === "auth_required") {
+          setToolsError("auth_required")
         } else {
           setToolsError(data.message ?? data.error ?? "Failed to load tools")
         }
@@ -366,6 +375,46 @@ export function PlaygroundInterface() {
                       </a>
                     )}
                   </WarnBanner>
+                ) : toolsError === "auth_required" ? (
+                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/8 p-4">
+                    <div className="flex items-start gap-2.5">
+                      <AlertCircle className="h-4 w-4 shrink-0 text-amber-400/80 mt-0.5" />
+                      <div>
+                        <p className="text-[12px] font-medium text-amber-400/90 mb-1">
+                          Authentication required
+                        </p>
+                        <p className="text-[11px] text-amber-400/60 leading-relaxed mb-2.5">
+                          This server requires an API key or personal token to connect.
+                          Public access is not available for this endpoint.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedServer.websiteUrl && (
+                            <a
+                              href={selectedServer.websiteUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] text-amber-400/80 hover:text-amber-400 underline underline-offset-2 transition-colors"
+                            >
+                              Get API key ↗
+                            </a>
+                          )}
+                          {selectedServer.githubUrl && (
+                            <a
+                              href={selectedServer.githubUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] text-amber-400/80 hover:text-amber-400 underline underline-offset-2 transition-colors"
+                            >
+                              View on GitHub ↗
+                            </a>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-amber-400/40 mt-2">
+                          Try selecting a different server from the sidebar — many are publicly accessible.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <div className="rounded-xl border border-red-500/20 bg-red-500/8 p-4">
                     <div className="flex items-start gap-2.5">
